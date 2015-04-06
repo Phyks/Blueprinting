@@ -9,6 +9,13 @@ Hence, it aims at helping you write Ansible scripts quickly from an already runn
 This script is mostly inspired by [Devstructure's blueprint](https://github.com/devstructure/blueprint).
 
 
+## Usage
+
+`pacman.py` is to be considered as a wrapper around useful pacman commands to extract informations on installed packages, installed AUR packages, configuration files etc.
+
+`blueprinting.py` is the main entry point. For now, it just calls main entry points of `pacman.py` to get useful information on your system, so you should refer to the code in `blueprinting.py` and edit it to do something useful with the returns from these functions. But this script is a Work In Progress and a user interface is planned.
+
+
 ## License
 
 All the source code I wrote is under a `no-alcohol beer-ware license`.
