@@ -140,14 +140,14 @@ def list_installed_aur_packages():
     return pacman_raw
 
 
-def list_new_config_files():
+def list_new_config_files(ignore_binaries=True):
     """
     List all the config files under /etc that are not directly coming from a
     packet.
     """
     # Get all the config files under /etc owned by a package
     pacman = subprocess.Popen(["pacman", "-Qq"],
-                                        stdout=subprocess.PIPE)
+                              stdout=subprocess.PIPE)
     pacman_raw = subprocess.check_output(["pacman", "-Ql", "-"],
                                          stdin=pacman.stdout)
     pacman_raw = pacman_raw.decode("utf-8").strip()
@@ -162,16 +162,11 @@ def list_new_config_files():
     diff = []
     # Filter etc files
     for i in raw_diff:
-        if i.startswith("/etc/certs/"):
-            continue
-        if i.startswith("/etc/ssl/certs"):
-            continue
-        if i.startswith("/etc/ca-certificates"):
-            continue
         # Do not append if binary file
-        check_binary_raw = subprocess.check_output(["file", i])
-        check_binary_raw = check_binary_raw.decode("utf-8")
-        if "text" not in check_binary_raw:
-            continue
+        if ignore_binaries:
+            check_binary_raw = subprocess.check_output(["file", i])
+            check_binary_raw = check_binary_raw.decode("utf-8")
+            if "text" not in check_binary_raw:
+                continue
         diff.append(i)
     return diff
