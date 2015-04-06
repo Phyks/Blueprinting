@@ -2,6 +2,7 @@
 import os
 import subprocess
 import sys
+import tools
 
 PACKAGE_BASE_PATH = "/var/cache/pacman/pkg/"
 ARCH = "x86_64"
@@ -75,22 +76,14 @@ def list_modified_config_files(packages=[]):
 
     packages is an optionnal filtering list of packages. Defaults to [] which
     means "all the packages".
-
-    Returns a dict with modified configuration files as keys and diffs as
-    values.
     """
+    # TODO: diff
     pacman_raw = subprocess.check_output(["pacman", "-Qii"] + packages)
     pacman_raw = pacman_raw.decode("utf-8").strip()
     modified_list = [i.split("\t")[1]
                      for i in pacman_raw.split("\n")
                      if i.startswith("MODIFIED")]
-    modified_files = {}
-    for i in modified_list:
-        package_file = get_file_from_package(i)
-        with open(i, 'r') as fh:
-            fs_file = fh.read()
-        modified_files[i] = None
-    return modified_files
+    return modified_list
 
 
 def list_installed_packages():
@@ -123,7 +116,7 @@ def list_installed_packages():
         # Check that they are installed anyway
         diff_are_all_installed = True
         for package in diff:
-            if not is_installed(package):
+            if package not in packages_list:
                 diff_are_all_installed = False
                 break
         if diff_are_all_installed:
@@ -136,3 +129,49 @@ def list_installed_packages():
                     pass
             packages_list.append(group)
     return packages_list
+
+
+def list_installed_aur_packages():
+    """
+    List all the explicitly installed AUR packages.
+    """
+    pacman_raw = subprocess.check_output(["pacman", "-Qemq"])
+    pacman_raw = pacman_raw.decode("utf-8").split("\n")
+    return pacman_raw
+
+
+def list_new_config_files():
+    """
+    List all the config files under /etc that are not directly coming from a
+    packet.
+    """
+    # Get all the config files under /etc owned by a package
+    pacman = subprocess.Popen(["pacman", "-Qq"],
+                                        stdout=subprocess.PIPE)
+    pacman_raw = subprocess.check_output(["pacman", "-Ql", "-"],
+                                         stdin=pacman.stdout)
+    pacman_raw = pacman_raw.decode("utf-8").strip()
+    etc_files = [i.split(" ")[-1] for i in pacman_raw.split("\n")]
+    etc_files = [i
+                 for i in etc_files
+                 if i.startswith("/etc") and os.path.isfile(i)]
+    # Get all the files under /etc, in the filesystem
+    fs_etc_files = tools.list_directory("/etc/", lambda x: os.path.isfile(x))
+    # Diff the two
+    raw_diff = set(fs_etc_files).difference(set(etc_files))
+    diff = []
+    # Filter etc files
+    for i in raw_diff:
+        if i.startswith("/etc/certs/"):
+            continue
+        if i.startswith("/etc/ssl/certs"):
+            continue
+        if i.startswith("/etc/ca-certificates"):
+            continue
+        # Do not append if binary file
+        check_binary_raw = subprocess.check_output(["file", i])
+        check_binary_raw = check_binary_raw.decode("utf-8")
+        if "text" not in check_binary_raw:
+            continue
+        diff.append(i)
+    return diff
